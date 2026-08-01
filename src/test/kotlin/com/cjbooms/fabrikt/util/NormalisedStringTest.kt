@@ -61,6 +61,12 @@ class NormalisedStringTest {
     }
 
     @Test
+    fun `toEnumName should map a blank value to EMPTY`() {
+        assertThat("".toEnumName()).isEqualTo("EMPTY")
+        assertThat("   ".toEnumName()).isEqualTo("EMPTY")
+    }
+
+    @Test
     fun `camelCase should preserve single leading underscore to distinguish from non-prefixed name`() {
         assertThat("_foo".camelCase()).isEqualTo("_foo")
     }

@@ -99,11 +99,12 @@ object KaizenParserExtensions {
 
     @Suppress("UNCHECKED_CAST")
     fun Schema.getEnumValues(): List<String> = when {
-        this.hasEnums() -> this.enums.filterNotNull().map { it.toString() }.filterNot { it.isBlank() }
+        // Blank values are kept: they are meaningful in several real APIs (Docker's RestartPolicy
+        // Name is "" for "do not restart") and are rendered as the EMPTY enum constant.
+        this.hasEnums() -> this.enums.filterNotNull().map { it.toString() }
         this.isOpenEnumDefinition() -> this.getOpenEnumValues()
         !MutableSettings.modelOptions.contains(ModelCodeGenOptionType.X_EXTENSIBLE_ENUMS) -> emptyList()
-        else -> extensions[EXTENSIBLE_ENUM_KEY]?.let { it as List<String?> }?.filterNotNull()
-            ?.filterNot { it.isBlank() } ?: emptyList()
+        else -> extensions[EXTENSIBLE_ENUM_KEY]?.let { it as List<String?> }?.filterNotNull() ?: emptyList()
     }
 
     /**

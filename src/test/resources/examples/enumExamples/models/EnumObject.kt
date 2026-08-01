@@ -15,6 +15,7 @@ public enum class EnumObject(
   _5("-5"),
   _6("_6"),
   REALLY_LONG_ENUM_VALUE_GOES_HERE_AND_IT_IS_VERY_DESCRIPTIVE("really long enum value goes here and it is very descriptive"),
+  EMPTY(""),
   ;
 
   override fun toString(): String = value

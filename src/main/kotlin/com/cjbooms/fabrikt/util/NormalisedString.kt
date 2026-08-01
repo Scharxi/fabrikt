@@ -33,11 +33,20 @@ object NormalisedString {
 
     fun String.toMapValueClassName(): String = "${this.pascalCase()}Value"
 
+    /**
+     * Blank values have no characters left after normalisation, so they are mapped to `EMPTY`
+     * rather than producing an invalid (or crashing) identifier. The `@JsonValue` of the generated
+     * constant still carries the original blank string.
+     */
     fun String.toEnumName(): String =
-        replaceSpecialCharacters()
-            .camelToSnake()
-            .toUpperCase()
-            .quoteIfNotValidIdentifier()
+        if (isBlank()) {
+            "EMPTY"
+        } else {
+            replaceSpecialCharacters()
+                .camelToSnake()
+                .toUpperCase()
+                .quoteIfNotValidIdentifier()
+        }
 
     fun String.toKotlinParameterName(): String = this.camelCase()
 

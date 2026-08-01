@@ -46,6 +46,29 @@ components:
         - -5
         - _6
         - really long enum value goes here and it is very descriptive
+        - ""
+
+    # Mirrors Docker's RestartPolicy.Name: the empty string is both a declared value and the
+    # default, meaning "do not restart". Keeping the blank entry lets the default resolve to
+    # RestartPolicyName.EMPTY instead of forcing the property nullable.
+    RestartPolicyName:
+      type: string
+      default: ""
+      enum:
+        # Quoted so YAML 1.1 does not coerce `no` into a boolean.
+        - ""
+        - "no"
+        - always
+        - unless-stopped
+        - on-failure
+
+    RestartPolicy:
+      type: object
+      properties:
+        Name:
+          $ref: '#/components/schemas/RestartPolicyName'
+        MaximumRetryCount:
+          type: integer
 
     ExtensibleEnumObject:
       type: string
