@@ -1,6 +1,10 @@
 #
 # https://help.github.com/articles/dealing-with-line-endings/
 #
+# The generator always emits LF, so the golden files under src/test/resources must be
+# checked out with LF or every comparison test fails on machines with core.autocrlf=true.
+* text=auto eol=lf
+
 # These are explicitly windows files and should use crlf
 *.bat           text eol=crlf
 
