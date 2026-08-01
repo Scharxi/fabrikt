@@ -24,6 +24,7 @@ object CodeGen {
             modelOptions = codeGenArgs.modelOptions,
             modelSuffix = codeGenArgs.modelSuffix,
             clientOptions = codeGenArgs.clientOptions,
+            serverOptions = codeGenArgs.serverOptions,
             typeOverrides = codeGenArgs.typeOverrides,
             externalRefResolutionMode = codeGenArgs.externalRefResolutionMode,
             instantLibrary = codeGenArgs.instantLibrary,

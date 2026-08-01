@@ -106,6 +106,13 @@ class CodeGenArgs {
     var clientOptions: Set<ClientCodeGenOptionType> = emptySet()
 
     @Parameter(
+        names = ["--http-server-opts"],
+        description = "Select the options for the Ktor server stubs that you want to be generated.",
+        converter = ServerCodeGenOptionConverter::class
+    )
+    var serverOptions: Set<ServerCodeGenOptionType> = emptySet()
+
+    @Parameter(
         names = ["--src-path"],
         description = "Allows the path for generated source files to be overridden. Defaults to `src/main/kotlin`",
         converter = PathConverter::class
@@ -156,6 +163,11 @@ class ModelCodeGenOptionConverter : IStringConverter<ModelCodeGenOptionType> {
 
 class ClientCodeGenOptionConverter : IStringConverter<ClientCodeGenOptionType> {
     override fun convert(value: String): ClientCodeGenOptionType =
+        convertToEnumValue(value)
+}
+
+class ServerCodeGenOptionConverter : IStringConverter<ServerCodeGenOptionType> {
+    override fun convert(value: String): ServerCodeGenOptionType =
         convertToEnumValue(value)
 }
 

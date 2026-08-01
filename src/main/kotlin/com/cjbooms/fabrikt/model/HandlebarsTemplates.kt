@@ -24,6 +24,7 @@ object HandlebarsTemplates {
     val ktorClientApiModels = handlebars.compile("/templates/client-code/ktor-api-models.kt")!!
     val ktorClientApiConfiguration = handlebars.compile("/templates/client-code/ktor-api-configuration.kt")!!
     val ktorClientWebSocketSupport = handlebars.compile("/templates/client-code/ktor-websocket-support.kt")!!
+    val ktorServerWebSocketSupport = handlebars.compile("/templates/client-code/ktor-server-websocket-support.kt")!!
 
     fun applyTemplate(
         template: Template,

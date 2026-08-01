@@ -7,6 +7,7 @@ import com.cjbooms.fabrikt.cli.ExternalReferencesResolutionMode
 import com.cjbooms.fabrikt.cli.InstantLibrary
 import com.cjbooms.fabrikt.cli.ModelCodeGenOptionType
 import com.cjbooms.fabrikt.cli.OutputOptionType
+import com.cjbooms.fabrikt.cli.ServerCodeGenOptionType
 import com.cjbooms.fabrikt.model.KotlinxSerializationAnnotations
 import com.cjbooms.fabrikt.model.SerializationAnnotations
 
@@ -18,6 +19,8 @@ object MutableSettings {
     var modelSuffix: String = ""
         private set
     var clientOptions: Set<ClientCodeGenOptionType> = mutableSetOf()
+        private set
+    var serverOptions: Set<ServerCodeGenOptionType> = mutableSetOf()
         private set
     var typeOverrides: Set<CodeGenTypeOverride> = mutableSetOf()
         private set
@@ -39,6 +42,7 @@ object MutableSettings {
         modelOptions: Set<ModelCodeGenOptionType> = emptySet(),
         modelSuffix: String = "",
         clientOptions: Set<ClientCodeGenOptionType> = emptySet(),
+        serverOptions: Set<ServerCodeGenOptionType> = emptySet(),
         typeOverrides: Set<CodeGenTypeOverride> = emptySet(),
         externalRefResolutionMode: ExternalReferencesResolutionMode = ExternalReferencesResolutionMode.default,
         instantLibrary: InstantLibrary = InstantLibrary.default,
@@ -48,6 +52,7 @@ object MutableSettings {
         this.modelOptions = modelOptions - ModelCodeGenOptionType.SEALED_INTERFACES_FOR_ONE_OF
         this.modelSuffix = modelSuffix
         this.clientOptions = clientOptions
+        this.serverOptions = serverOptions
         this.typeOverrides = typeOverrides
         this.externalRefResolutionMode = externalRefResolutionMode
         this.instantLibrary = instantLibrary

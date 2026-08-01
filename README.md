@@ -2,9 +2,9 @@
   <img src=".github/assets/fabrikt-horizontal-final.png" alt="fabrikt" height="80">
 </p>
 
-# Fabrikt `/ˈfa-brikt/` — Ktor client + kotlinx-serialization from OpenAPI 3
+# Fabrikt `/ˈfa-brikt/` — Ktor client/server + kotlinx-serialization from OpenAPI 3
 
-This fork generates a **Ktor HTTP client** (including WebSockets via `x-websocket`) and **kotlinx-serialization** models from OpenAPI 3. Controllers, OkHttp/Feign/Spring clients, Jackson-as-model-library, Quarkus/Micronaut options, and the playground are not supported.
+This fork generates a **Ktor HTTP client**, **Ktor server stubs**, and **kotlinx-serialization** models from OpenAPI 3 (including WebSockets via `x-websocket`). OkHttp/Feign/Spring clients, Spring/Micronaut controllers, Jackson-as-model-library, Quarkus options, and the playground are not supported.
 
 Jackson remains on the **tool** classpath only, for YAML/OpenAPI parsing. Generated models use kotlinx-serialization exclusively and do not depend on Jackson.
 
@@ -13,6 +13,7 @@ Jackson remains on the **tool** classpath only, for YAML/OpenAPI parsing. Genera
 * [Usage Instructions](#usage-instructions)
 * [Getting the Most from Fabrikt](#getting-the-most-from-fabrikt)
 * [Configuration Options](#configuration-options)
+* [Ktor server stubs](#ktor-server-stubs)
 * [WebSockets via `x-websocket`](#websockets-via-x-websocket)
 * [Building Locally](#building-locally)
 
@@ -20,7 +21,8 @@ Jackson remains on the **tool** classpath only, for YAML/OpenAPI parsing. Genera
 
 * **Models** — kotlinx-serialization annotated data classes (sealed oneOf, enums, maps, type overrides, …)
 * **Client** — Ktor client for HTTP operations
-* **WebSockets** — type-safe session classes for `get` operations marked with `x-websocket`
+* **Server** — thin controller interfaces + top-level `Route` mount helpers + shared support
+* **WebSockets** — type-safe session classes for `get` operations marked with `x-websocket` (client and server)
 
 ## Examples
 
@@ -28,6 +30,7 @@ Unit-test goldens live under [`src/test/resources/examples`](src/test/resources/
 
 * [`end2end-tests/ktor-client-kotlinx`](end2end-tests/ktor-client-kotlinx)
 * [`end2end-tests/ktor-client-websocket`](end2end-tests/ktor-client-websocket)
+* [`end2end-tests/ktor-server`](end2end-tests/ktor-server)
 * [`end2end-tests/models-kotlinx`](end2end-tests/models-kotlinx)
 
 ## Usage Instructions
@@ -110,6 +113,7 @@ Discriminated `oneOf` generates sealed interfaces / polymorphic kotlinx models b
 | * `--base-package` | Base package for generated code |
 | `--external-ref-resolution` | How external `$ref` schemas are included. Default: `TARGETED`. Choices: `TARGETED`, `AGGRESSIVE` |
 | `--http-client-opts` | Client options. Choices: `GROUP_BY_TAG` |
+| `--http-server-opts` | Server options. Choices: `GROUP_BY_TAG`, `AUTHENTICATION` |
 | `--http-model-opts` | Model options. Choices: `X_EXTENSIBLE_ENUMS`, `JAVA_SERIALIZATION`, `INCLUDE_COMPANION_OBJECT`, `DISABLE_SEALED_INTERFACES_FOR_ONE_OF`, `NON_NULL_MAP_VALUES`, `FAULT_TOLERANT_ENUMS`, `FAULT_TOLERANT_OPEN_ENUMS` |
 | `--http-model-suffix` | Custom suffix for generated model class names |
 | `--instant-library` | Instant library when generating Instant types. Default: `KOTLINX_INSTANT`. Choices: `KOTLINX_INSTANT`, `KOTLIN_TIME_INSTANT` |
@@ -117,10 +121,31 @@ Discriminated `oneOf` generates sealed interfaces / polymorphic kotlinx models b
 | `--output-opts` | Output options. Choices: `ADD_FILE_DISCLAIMER` |
 | `--resources-path` | Path for generated resources. Default: `src/main/resources` |
 | `--src-path` | Path for generated sources. Default: `src/main/kotlin` |
-| `--targets` | What to generate. Default: `CLIENT`. Choices: `CLIENT`, `HTTP_MODELS` |
+| `--targets` | What to generate. Default: `CLIENT`. Choices: `CLIENT`, `SERVER`, `HTTP_MODELS` |
 | `--type-overrides` | Non-default Kotlin types for certain OAS formats (`DATETIME_AS_INSTANT`, `ANY_AS_JSONELEMENT`, `*_AS_STRING`, …) |
 
 Print live help with `./gradlew printCodeGenUsage`.
+
+## Ktor server stubs
+
+`--targets server` co-generates models and emits:
+
+* one controller interface per resource (always `suspend`)
+* a top-level `fun Route.<resource>Routes(controller)` mount helper
+* shared `KtorServerSupport.kt` (`TypedApplicationCall`, typed parameter helpers)
+* for `x-websocket` ops: nested session types + `webSocket` mounts, plus `KtorServerWebSocketSupport.kt`
+
+```kotlin
+routing {
+    roomsRoutes(object : RoomsController {
+        override suspend fun listRooms(call: TypedApplicationCall<List<Room>>) {
+            call.respondTyped(listOf(Room(id = "general", name = "General")))
+        }
+    })
+}
+```
+
+With `--http-server-opts AUTHENTICATION`, secured operations are wrapped in Ktor `authenticate(...)`. Install `Authentication` in your application for that to work. Typed path/query conversion uses Ktor's data conversion plugin for non-primitive types.
 
 ## WebSockets via `x-websocket`
 
@@ -149,7 +174,7 @@ paths:
 
 Both directions are optional. Message payloads must be `$ref`s into `#/components/schemas/` so model generation can emit them.
 
-Generated usage:
+**Client** usage:
 
 ```kotlin
 val result = RoomsStreamClient(httpClient).streamRoom(roomId = "general") {
@@ -158,13 +183,31 @@ val result = RoomsStreamClient(httpClient).streamRoom(roomId = "general") {
 }
 ```
 
-Install Ktor WebSockets with a kotlinx content converter:
+**Server** usage (generated mount + session; OpenAPI `send`/`receive` are client-centric, so the server session flips them):
+
+```kotlin
+routing {
+    roomsStreamRoutes(object : RoomsStreamController {
+        override suspend fun streamRoom(..., session: StreamRoomSession) {
+            val command = session.incoming.first() // ChatCommand from client
+            session.send(ChatEvent(...))           // to client
+        }
+    })
+}
+```
+
+Install Ktor WebSockets with a kotlinx content converter on both sides:
 
 ```kotlin
 val httpClient = HttpClient(CIO) {
     install(WebSockets) {
         contentConverter = KotlinxWebsocketSerializationConverter(Json)
     }
+}
+
+// server
+install(WebSockets) {
+    contentConverter = KotlinxWebsocketSerializationConverter(Json)
 }
 ```
 
@@ -176,6 +219,7 @@ cd fabrikt/
 ./gradlew clean :test
 ./gradlew :end2end-tests:ktor-client-kotlinx:test \
           :end2end-tests:ktor-client-websocket:test \
+          :end2end-tests:ktor-server:test \
           :end2end-tests:models-kotlinx:test
 ```
 

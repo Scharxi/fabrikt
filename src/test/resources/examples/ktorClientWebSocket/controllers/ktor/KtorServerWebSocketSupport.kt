@@ -1,0 +1,23 @@
+package examples.ktorClientWebSocket.controllers
+
+import io.ktor.server.websocket.DefaultWebSocketServerSession
+import io.ktor.server.websocket.receiveDeserialized
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+
+/**
+ * Streams incoming frames, deserialized to [T], until the peer closes the session.
+ *
+ * Deserialization relies on the content converter configured on the server `WebSockets` plugin,
+ * so the flow is only usable when one has been installed.
+ */
+inline fun <reified T> DefaultWebSocketServerSession.incomingMessages(): Flow<T> = flow {
+    try {
+        while (true) {
+            emit(receiveDeserialized<T>())
+        }
+    } catch (_: ClosedReceiveChannelException) {
+        // The peer closed the session, which completes the flow normally.
+    }
+}

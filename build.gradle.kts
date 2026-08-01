@@ -28,7 +28,7 @@ val projectScmConUrl = "scm:https://fabrikt-io@github.com/fabrikt-io/fabrikt.git
 val projectScmDevUrl = "scm:git://github.com/fabrikt-io/fabrikt.git"
 val projectIssueUrl = "https://github.com/fabrikt-io/fabrikt/issues"
 val projectName = "Fabrikt"
-val projectDesc = "Generates Ktor clients and kotlinx-serialization models from OpenAPI 3"
+val projectDesc = "Generates Ktor clients/servers and kotlinx-serialization models from OpenAPI 3"
 val projectLicenseName = "Apache License 2.0"
 val projectLicenseUrl = "https://opensource.org/licenses/Apache-2.0"
 

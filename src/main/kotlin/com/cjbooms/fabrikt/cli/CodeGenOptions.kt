@@ -6,6 +6,9 @@ enum class CodeGenerationType(val description: String) {
     ),
     CLIENT(
         "Ktor HTTP client for the endpoints defined in the input, including WebSocket sessions marked with x-websocket."
+    ),
+    SERVER(
+        "Ktor server stubs: controller interfaces, Route mount helpers, and WebSocket sessions marked with x-websocket."
     );
 
     override fun toString() = "`${super.toString()}` - $description"
@@ -13,6 +16,13 @@ enum class CodeGenerationType(val description: String) {
 
 enum class ClientCodeGenOptionType(private val description: String) {
     GROUP_BY_TAG("This option groups clients based on the first tag rather than paths");
+
+    override fun toString() = "`${super.toString()}` - $description"
+}
+
+enum class ServerCodeGenOptionType(private val description: String) {
+    GROUP_BY_TAG("This option groups controllers based on the first tag rather than paths"),
+    AUTHENTICATION("This option wraps authenticated routes with Ktor authenticate { }");
 
     override fun toString() = "`${super.toString()}` - $description"
 }

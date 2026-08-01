@@ -48,6 +48,24 @@ class ControllerType(spec: TypeSpec, basePackage: String) : GeneratedType(spec, 
 class ControllerLibraryType(spec: TypeSpec, basePackage: String) :
     GeneratedType(spec, controllersPackage(basePackage))
 
+/**
+ * One generated controller interface plus its top-level [Route] mount function.
+ */
+data class ControllerResource(
+    val controller: ControllerType,
+    val routeFunction: com.squareup.kotlinpoet.FunSpec,
+)
+
+data class Controllers(val resources: Collection<ControllerResource>) {
+    val files: Collection<FileSpec> = resources.map { resource ->
+        FileSpec.builder(resource.controller.destinationPackage, resource.controller.className.simpleName)
+            .addFileDisclaimer()
+            .addType(resource.controller.spec)
+            .addFunction(resource.routeFunction)
+            .build()
+    }.toSet()
+}
+
 data class Models(val models: Collection<ModelType>) : KotlinTypes(models) {
     override val files: Collection<FileSpec> = models.toFileSpec()
 }
