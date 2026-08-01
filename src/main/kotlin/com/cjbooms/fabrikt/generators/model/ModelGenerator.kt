@@ -932,17 +932,18 @@ class ModelGenerator(
         classType: ClassSettings,
     ): TypeSpec.Builder {
         this.forEach {
+            val parameterizedType = toClassName(
+                packages.base,
+                it.typeInfo,
+            )
             it.addToClass(
                 schemaName = schemaName,
                 type = toModelType(
                     packages.base,
                     it.typeInfo,
-                    it.isNullable(classType),
+                    it.isNullable(classType, parameterizedType),
                 ),
-                parameterizedType = toClassName(
-                    packages.base,
-                    it.typeInfo,
-                ),
+                parameterizedType = parameterizedType,
                 classBuilder = classBuilder,
                 constructorBuilder = constructorBuilder,
                 classSettings = classType,

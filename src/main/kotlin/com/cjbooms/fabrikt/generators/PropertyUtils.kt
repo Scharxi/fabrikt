@@ -124,13 +124,13 @@ object PropertyUtils {
                         serializationAnnotations.addParameter(property, oasKey, isRequired, typeInfo)
                     }
                     serializationAnnotations.addProperty(property, oasKey, typeInfo)
-                    property.addValidationAnnotations(this, validationAnnotations, classSettings)
+                    property.addValidationAnnotations(this, validationAnnotations, classSettings, parameterizedType)
                 }
 
                 ClassSettings.PolymorphyType.NONE -> {
                     serializationAnnotations.addParameter(property, oasKey, isRequired, typeInfo)
                     serializationAnnotations.addProperty(property, oasKey, typeInfo)
-                    property.addValidationAnnotations(this, validationAnnotations, classSettings)
+                    property.addValidationAnnotations(this, validationAnnotations, classSettings, parameterizedType)
                 }
 
                 ClassSettings.PolymorphyType.ONE_OF -> {
@@ -138,7 +138,7 @@ object PropertyUtils {
                         serializationAnnotations.addParameter(property, oasKey, isRequired, typeInfo)
                     }
                     serializationAnnotations.addProperty(property, oasKey, typeInfo)
-                    property.addValidationAnnotations(this, validationAnnotations, classSettings)
+                    property.addValidationAnnotations(this, validationAnnotations, classSettings, parameterizedType)
                 }
             }
 
@@ -240,7 +240,7 @@ object PropertyUtils {
             isPolymorphicDiscriminator &&
             maybeDiscriminator.getDiscriminatorMappings(schemaName).size > 1
 
-    private fun getDefaultValue(propTypeInfo: PropertyInfo, parameterizedType: TypeName): OasDefault? {
+    private fun getDefaultValue(propTypeInfo: PropertyInfo, parameterizedType: TypeName?): OasDefault? {
         return when (propTypeInfo) {
             is PropertyInfo.Field -> propTypeInfo.schema.default?.let {
                 val className = parameterizedType as? ClassName
@@ -254,8 +254,14 @@ object PropertyUtils {
     fun PropertyInfo.isSchemaNullable(classSettings: ClassSettings): Boolean =
         schema.isNullable || classSettings.nullableObjectRefs.contains(oasKey)
 
-    fun PropertyInfo.isNullable(classSettings: ClassSettings) = when (this) {
-        is PropertyInfo.Field -> !isRequired && schema.default == null || isSchemaNullable(classSettings)
+    /**
+     * Nullability is decided by the resolved default rather than by the presence of `default` in the
+     * schema, because not every declared default can be expressed in Kotlin. An enum default that is
+     * not one of the generated constants is the common case: dropping it while still treating the
+     * property as non-null would emit `val x: SomeEnum = null`, which does not compile.
+     */
+    fun PropertyInfo.isNullable(classSettings: ClassSettings, parameterizedType: TypeName?) = when (this) {
+        is PropertyInfo.Field -> !isRequired && getDefaultValue(this, parameterizedType) == null || isSchemaNullable(classSettings)
         is PropertyInfo.ListField, is PropertyInfo.MapField,
         is PropertyInfo.ObjectRefField, is PropertyInfo.ObjectInlinedField ->
             !isRequired || isSchemaNullable(classSettings)
@@ -284,8 +290,9 @@ object PropertyUtils {
         info: PropertyInfo,
         validationAnnotations: ValidationAnnotations,
         classSettings: ClassSettings,
+        parameterizedType: TypeName?,
     ) {
-        if (!info.isNullable(classSettings)) maybeAddAnnotation(validationAnnotations.nonNullAnnotation)
+        if (!info.isNullable(classSettings, parameterizedType)) maybeAddAnnotation(validationAnnotations.nonNullAnnotation)
         when (info) {
             is PropertyInfo.Field -> {
                 // Regex validation pattern to validate string input
