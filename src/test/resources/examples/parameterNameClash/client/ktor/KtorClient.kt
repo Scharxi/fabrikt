@@ -11,6 +11,8 @@ import io.ktor.client.request.headers
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.encodeURLParameter
+import io.ktor.http.encodeURLPath
 import io.ktor.http.isSuccess
 import io.ktor.serialization.ContentConvertException
 import kotlinx.coroutines.CancellationException
@@ -36,13 +38,14 @@ public class ExampleClient(
         apiConfiguration: ApiConfiguration = ApiConfiguration(),
     ): NetworkResult<Unit> {
         val basePath = apiConfiguration.basePath.trimEnd('/')
+        val encodedPathB = pathB.toString().encodeURLPath()
         val url =
             buildString {
                 append(basePath)
-                append("""/example/$pathB""")
+                append("""/example/$encodedPathB""")
                 val params =
                     buildList {
-                        add("b=$queryB")
+                        add("b=${queryB.toString().encodeURLParameter()}")
                     }
                 if (params.isNotEmpty()) append("?").append(params.joinToString("&"))
             }
@@ -109,7 +112,7 @@ public class ExampleClient(
                 append("""/example""")
                 val params =
                     buildList {
-                        add("someObject=$querySomeObject")
+                        add("someObject=${querySomeObject.toString().encodeURLParameter()}")
                     }
                 if (params.isNotEmpty()) append("?").append(params.joinToString("&"))
             }

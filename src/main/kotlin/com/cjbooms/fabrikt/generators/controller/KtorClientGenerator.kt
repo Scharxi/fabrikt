@@ -49,6 +49,8 @@ class KtorClientGenerator(
 
     private val toWebSocketUrl = MemberName(packages.client, "toWebSocketUrl", isExtension = true)
     private val incomingMessages = MemberName(packages.client, "incomingMessages", isExtension = true)
+    private val encodeUrlParameter = MemberName("io.ktor.http", "encodeURLParameter", isExtension = true)
+    private val encodeUrlPath = MemberName("io.ktor.http", "encodeURLPath", isExtension = true)
 
     private val hasWebSockets: Boolean =
         api.openApi3.paths.values.any { path -> path.operations.values.any { it.isWebSocket() } }
@@ -353,6 +355,10 @@ class KtorClientGenerator(
     /**
      * Builds `basePath` and `url` locals from the operation's path template and query parameters.
      * [urlTransform], when given, is applied to the assembled URL.
+     *
+     * Values are percent encoded, otherwise a reserved character in user input changes the meaning
+     * of the request rather than being sent literally. Path values keep their slashes, because a
+     * path parameter is routinely expanded into more than one segment.
      */
     private fun CodeBlock.Builder.addUrlStatement(
         pathString: String,
@@ -360,18 +366,29 @@ class KtorClientGenerator(
         queryParams: List<RequestParameter>,
         urlTransform: MemberName? = null,
     ) {
+        val encodedPathNames = pathParams.associate { it.originalName to "encoded${it.name.replaceFirstChar { c -> c.uppercase() }}" }
+
         val urlBuilder = buildString {
             append(pathString)
             pathParams.forEach { param ->
                 val placeholder = "{${param.originalName}}"
                 val index = indexOf(placeholder)
                 if (index >= 0) {
-                    replace(index, index + placeholder.length, "\${${param.name}}")
+                    replace(index, index + placeholder.length, "\${${encodedPathNames.getValue(param.originalName)}}")
                 }
             }
         }
 
         addStatement("val basePath = apiConfiguration.basePath.trimEnd('/')")
+        pathParams.forEach { param ->
+            addStatement(
+                "val %L = %N.toString().%M()",
+                encodedPathNames.getValue(param.originalName),
+                param.name,
+                encodeUrlPath,
+            )
+        }
+
         if (queryParams.isEmpty()) {
             if (urlTransform == null) {
                 addStatement("val url = basePath + %P", urlBuilder)
@@ -389,15 +406,27 @@ class KtorClientGenerator(
                 val isArrayType = param.typeInfo is KotlinTypeInfo.Array
                 if (isArrayType) {
                     if (param.isRequired) {
-                        addStatement("%N.forEach { add(\"%L=\${it}\") }", param.name, param.originalName)
+                        addStatement(
+                            "%N.forEach { add(\"%L=\${it.toString().%M()}\") }",
+                            param.name, param.originalName, encodeUrlParameter,
+                        )
                     } else {
-                        addStatement("%N?.forEach { add(\"%L=\${it}\") }", param.name, param.originalName)
+                        addStatement(
+                            "%N?.forEach { add(\"%L=\${it.toString().%M()}\") }",
+                            param.name, param.originalName, encodeUrlParameter,
+                        )
                     }
                 } else {
                     if (param.isRequired) {
-                        addStatement("add(\"%L=\${%N}\")", param.originalName, param.name)
+                        addStatement(
+                            "add(\"%L=\${%N.toString().%M()}\")",
+                            param.originalName, param.name, encodeUrlParameter,
+                        )
                     } else {
-                        addStatement("%N?.let { add(\"%L=\${it}\") }", param.name, param.originalName)
+                        addStatement(
+                            "%N?.let { add(\"%L=\${it.toString().%M()}\") }",
+                            param.name, param.originalName, encodeUrlParameter,
+                        )
                     }
                 }
             }

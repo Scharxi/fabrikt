@@ -14,6 +14,8 @@ import io.ktor.client.request.headers
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.encodeURLParameter
+import io.ktor.http.encodeURLPath
 import io.ktor.http.isSuccess
 import io.ktor.serialization.ContentConvertException
 import kotlinx.coroutines.CancellationException
@@ -49,7 +51,7 @@ public class PetClient(
                 append("""/pets""")
                 val params =
                     buildList {
-                        limit?.let { add("limit=$it") }
+                        limit?.let { add("limit=${it.toString().encodeURLParameter()}") }
                     }
                 if (params.isNotEmpty()) append("?").append(params.joinToString("&"))
             }
@@ -171,7 +173,8 @@ public class PetClient(
             ApiConfiguration(),
     ): NetworkResult<Pet> {
         val basePath = apiConfiguration.basePath.trimEnd('/')
-        val url = basePath + """/pets/$petId"""
+        val encodedPetId = petId.toString().encodeURLPath()
+        val url = basePath + """/pets/$encodedPetId"""
 
         return try {
             val response =
@@ -230,7 +233,8 @@ public class PetClient(
             ApiConfiguration(),
     ): NetworkResult<Unit> {
         val basePath = apiConfiguration.basePath.trimEnd('/')
-        val url = basePath + """/pets/$petId"""
+        val encodedPetId = petId.toString().encodeURLPath()
+        val url = basePath + """/pets/$encodedPetId"""
 
         return try {
             val response =
@@ -409,7 +413,8 @@ public class OwnerClient(
             ApiConfiguration(),
     ): NetworkResult<List<Pet>> {
         val basePath = apiConfiguration.basePath.trimEnd('/')
-        val url = basePath + """/owners/$ownerId/pets"""
+        val encodedOwnerId = ownerId.toString().encodeURLPath()
+        val url = basePath + """/owners/$encodedOwnerId/pets"""
 
         return try {
             val response =

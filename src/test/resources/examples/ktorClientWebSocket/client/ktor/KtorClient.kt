@@ -15,6 +15,8 @@ import io.ktor.client.request.`get`
 import io.ktor.client.request.`header`
 import io.ktor.client.request.headers
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.encodeURLParameter
+import io.ktor.http.encodeURLPath
 import io.ktor.http.isSuccess
 import io.ktor.serialization.ContentConvertException
 import io.ktor.websocket.CloseReason
@@ -110,13 +112,14 @@ public class RoomsStreamClient(
         block: suspend StreamRoomSession.() -> Unit,
     ): NetworkResult<Unit> {
         val basePath = apiConfiguration.basePath.trimEnd('/')
+        val encodedRoomId = roomId.toString().encodeURLPath()
         val url =
             buildString {
                 append(basePath)
-                append("""/rooms/$roomId/stream""")
+                append("""/rooms/$encodedRoomId/stream""")
                 val params =
                     buildList {
-                        since?.let { add("since=$it") }
+                        since?.let { add("since=${it.toString().encodeURLParameter()}") }
                     }
                 if (params.isNotEmpty()) append("?").append(params.joinToString("&"))
             }.toWebSocketUrl()
@@ -203,7 +206,8 @@ public class RoomsEventsClient(
         block: suspend SubscribeRoomEventsSession.() -> Unit,
     ): NetworkResult<Unit> {
         val basePath = apiConfiguration.basePath.trimEnd('/')
-        val url = (basePath + """/rooms/$roomId/events""").toWebSocketUrl()
+        val encodedRoomId = roomId.toString().encodeURLPath()
+        val url = (basePath + """/rooms/$encodedRoomId/events""").toWebSocketUrl()
 
         return try {
             httpClient.webSocket(url, request = {
@@ -279,7 +283,8 @@ public class RoomsCommandsClient(
         block: suspend PushRoomCommandsSession.() -> Unit,
     ): NetworkResult<Unit> {
         val basePath = apiConfiguration.basePath.trimEnd('/')
-        val url = (basePath + """/rooms/$roomId/commands""").toWebSocketUrl()
+        val encodedRoomId = roomId.toString().encodeURLPath()
+        val url = (basePath + """/rooms/$encodedRoomId/commands""").toWebSocketUrl()
 
         return try {
             httpClient.webSocket(url, request = {

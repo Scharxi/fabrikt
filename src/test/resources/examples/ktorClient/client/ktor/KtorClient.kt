@@ -13,6 +13,8 @@ import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.encodeURLParameter
+import io.ktor.http.encodeURLPath
 import io.ktor.http.isSuccess
 import io.ktor.serialization.ContentConvertException
 import kotlinx.coroutines.CancellationException
@@ -53,9 +55,9 @@ public class ItemsClient(
                 append("""/items""")
                 val params =
                     buildList {
-                        limit?.let { add("limit=$it") }
-                        category?.let { add("category=$it") }
-                        priceLimit?.let { add("priceLimit=$it") }
+                        limit?.let { add("limit=${it.toString().encodeURLParameter()}") }
+                        category?.let { add("category=${it.toString().encodeURLParameter()}") }
+                        priceLimit?.let { add("priceLimit=${it.toString().encodeURLParameter()}") }
                     }
                 if (params.isNotEmpty()) append("?").append(params.joinToString("&"))
             }
@@ -128,13 +130,14 @@ public class CatalogsItemsClient(
         apiConfiguration: ApiConfiguration = ApiConfiguration(),
     ): NetworkResult<Item> {
         val basePath = apiConfiguration.basePath.trimEnd('/')
+        val encodedCatalogId = catalogId.toString().encodeURLPath()
         val url =
             buildString {
                 append(basePath)
-                append("""/catalogs/$catalogId/items""")
+                append("""/catalogs/$encodedCatalogId/items""")
                 val params =
                     buildList {
-                        add("randomNumber=$randomNumber")
+                        add("randomNumber=${randomNumber.toString().encodeURLParameter()}")
                     }
                 if (params.isNotEmpty()) append("?").append(params.joinToString("&"))
             }
@@ -205,7 +208,9 @@ public class ItemsSubitemsClient(
         apiConfiguration: ApiConfiguration = ApiConfiguration(),
     ): NetworkResult<Item> {
         val basePath = apiConfiguration.basePath.trimEnd('/')
-        val url = basePath + """/items/$itemId/subitems/$subItemId"""
+        val encodedItemId = itemId.toString().encodeURLPath()
+        val encodedSubItemId = subItemId.toString().encodeURLPath()
+        val url = basePath + """/items/$encodedItemId/subitems/$encodedSubItemId"""
 
         return try {
             val response =
@@ -278,16 +283,17 @@ public class CatalogsSearchClient(
         apiConfiguration: ApiConfiguration = ApiConfiguration(),
     ): NetworkResult<List<Item>> {
         val basePath = apiConfiguration.basePath.trimEnd('/')
+        val encodedCatalogId = catalogId.toString().encodeURLPath()
         val url =
             buildString {
                 append(basePath)
-                append("""/catalogs/$catalogId/search""")
+                append("""/catalogs/$encodedCatalogId/search""")
                 val params =
                     buildList {
-                        add("query=$query")
-                        page?.let { add("page=$it") }
-                        sort?.let { add("sort=$it") }
-                        listParam?.forEach { add("listParam=$it") }
+                        add("query=${query.toString().encodeURLParameter()}")
+                        page?.let { add("page=${it.toString().encodeURLParameter()}") }
+                        sort?.let { add("sort=${it.toString().encodeURLParameter()}") }
+                        listParam?.forEach { add("listParam=${it.toString().encodeURLParameter()}") }
                     }
                 if (params.isNotEmpty()) append("?").append(params.joinToString("&"))
             }
@@ -355,7 +361,9 @@ public class CatalogsItemsAvailabilityClient(
         apiConfiguration: ApiConfiguration = ApiConfiguration(),
     ): NetworkResult<Unit> {
         val basePath = apiConfiguration.basePath.trimEnd('/')
-        val url = basePath + """/catalogs/$catalogId/items/$itemId/availability"""
+        val encodedCatalogId = catalogId.toString().encodeURLPath()
+        val encodedItemId = itemId.toString().encodeURLPath()
+        val url = basePath + """/catalogs/$encodedCatalogId/items/$encodedItemId/availability"""
 
         return try {
             val response =
@@ -415,7 +423,9 @@ public class CatalogsItemsAvailabilityClient(
         apiConfiguration: ApiConfiguration = ApiConfiguration(),
     ): NetworkResult<Unit> {
         val basePath = apiConfiguration.basePath.trimEnd('/')
-        val url = basePath + """/catalogs/$catalogId/items/$itemId/availability"""
+        val encodedCatalogId = catalogId.toString().encodeURLPath()
+        val encodedItemId = itemId.toString().encodeURLPath()
+        val url = basePath + """/catalogs/$encodedCatalogId/items/$encodedItemId/availability"""
 
         return try {
             val response =
@@ -605,11 +615,11 @@ public class ReservedInvalidWordsClient(
                 append("""/reserved-invalid-words""")
                 val params =
                     buildList {
-                        add("for=${`for`}")
-                        `if`.forEach { add("if=$it") }
-                        add("1234=${`1234`}")
-                        `fun`?.let { add("fun=$it") }
-                        `when`?.forEach { add("when=$it") }
+                        add("for=${`for`.toString().encodeURLParameter()}")
+                        `if`.forEach { add("if=${it.toString().encodeURLParameter()}") }
+                        add("1234=${`1234`.toString().encodeURLParameter()}")
+                        `fun`?.let { add("fun=${it.toString().encodeURLParameter()}") }
+                        `when`?.forEach { add("when=${it.toString().encodeURLParameter()}") }
                     }
                 if (params.isNotEmpty()) append("?").append(params.joinToString("&"))
             }
