@@ -1,0 +1,33 @@
+package {{ client }}
+
+import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
+import io.ktor.client.plugins.websocket.receiveDeserialized
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+
+/**
+ * Converts an HTTP base path into its WebSocket equivalent. Paths that already use a WebSocket
+ * scheme, and relative paths, are returned unchanged.
+ */
+fun String.toWebSocketUrl(): String = when {
+    startsWith("https://") -> "wss://" + removePrefix("https://")
+    startsWith("http://") -> "ws://" + removePrefix("http://")
+    else -> this
+}
+
+/**
+ * Streams incoming frames, deserialized to [T], until the peer closes the session.
+ *
+ * Deserialization relies on the content converter configured on the `WebSockets` client plugin,
+ * so the flow is only usable when one has been installed.
+ */
+inline fun <reified T> DefaultClientWebSocketSession.incomingMessages(): Flow<T> = flow {
+    try {
+        while (true) {
+            emit(receiveDeserialized<T>())
+        }
+    } catch (_: ClosedReceiveChannelException) {
+        // The peer closed the session, which completes the flow normally.
+    }
+}

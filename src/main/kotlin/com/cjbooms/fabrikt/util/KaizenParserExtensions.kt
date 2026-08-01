@@ -9,6 +9,7 @@ import com.cjbooms.fabrikt.util.NormalisedString.toModelClassName
 import com.reprezen.jsonoverlay.Overlay
 import com.reprezen.kaizen.oasparser.model3.Discriminator
 import com.reprezen.kaizen.oasparser.model3.OpenApi3
+import com.reprezen.kaizen.oasparser.model3.Operation
 import com.reprezen.kaizen.oasparser.model3.Path
 import com.reprezen.kaizen.oasparser.model3.Schema
 import java.net.URI
@@ -405,6 +406,13 @@ object KaizenParserExtensions {
         extensions[X_JACKSON_SUBTYPE_DEDUCTION] as? Boolean == true
 
     private const val X_JACKSON_SUBTYPE_DEDUCTION = "x-jackson-subtype-deduction"
+
+    /** Marks an operation as a WebSocket endpoint rather than a plain HTTP request. */
+    const val X_WEBSOCKET = "x-websocket"
+
+    fun Operation.isWebSocket(): Boolean = extensions.containsKey(X_WEBSOCKET)
+
+    fun Operation.webSocketExtension(): Any? = extensions[X_WEBSOCKET]
 
     private fun Schema.isInlinedAggregationOfExactlyOne() =
         combinedAnyOfAndAllOfSchemas().size == 1 && isInlinedPropertySchema()

@@ -37,7 +37,7 @@ data class SourceApi(
     val allSchemas: List<SchemaInfo>
 
     init {
-        validateSchemaObjects(openApi3).let {
+        (validateSchemaObjects(openApi3) + WebSocketExtension.validate(openApi3)).let {
             if (it.isNotEmpty()) throw ParameterException("Invalid models or api file:\n${it.joinToString("\n\t")}")
         }
 

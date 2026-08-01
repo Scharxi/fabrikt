@@ -63,7 +63,7 @@ The library currently has support for generating:
 * Clients
   * **OkHttp Client (w/ Jackson Models)** - with the option for a resilience4j fault-tolerance wrapper
   * **OpenFeign** annotated client interfaces
-  * **Ktor Client (w/ Jackson & Kotlin Serialization models)**
+  * **Ktor Client (w/ Jackson & Kotlin Serialization models)** - including type safe WebSocket sessions, see [WebSockets via `x-websocket`](#websockets-via-x-websocket)
   * **Spring HTTP Interface** annotated client interfaces
 * Controllers
   * **Spring MVC** annotated controller interfaces
@@ -461,6 +461,66 @@ data class Responses(
     val entries: List<ChildDefinition>? = null
 )
 ```
+
+### WebSockets via `x-websocket`
+
+OpenAPI has no native way to describe a WebSocket endpoint, so Fabrikt reads one from an
+`x-websocket` extension on a `get` operation. This matches the underlying protocol, where the
+handshake is an HTTP `GET` upgrade, and means path, query and header parameters are declared and
+generated exactly as they are for any other operation.
+
+```yaml
+paths:
+  /rooms/{roomId}/stream:
+    get:
+      operationId: streamRoom
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      x-websocket:
+        send:
+          $ref: '#/components/schemas/ChatCommand'
+        receive:
+          $ref: '#/components/schemas/ChatEvent'
+      responses:
+        '101':
+          description: Switching Protocols
+```
+
+Both directions are optional: declaring only `receive` produces a read-only session, only `send` a
+write-only one. Message payloads must be `$ref`s into `#/components/schemas/`, because schemas
+nested inside an extension are invisible to model generation and so would never be emitted.
+
+With `--http-client-target ktor`, the operation above generates a session type and a suspending
+function that performs the handshake and runs your code against the open session:
+
+```kotlin
+val result = RoomsStreamClient(httpClient).streamRoom(roomId = "general") {
+    send(ChatCommand(text = "hello"))
+    incoming.collect { event -> println(event.text) }
+}
+```
+
+`incoming` is a `Flow` of the `receive` type that completes when the peer closes the socket, and
+`send` takes the `send` type. The function returns `NetworkResult<Unit>`, mirroring the error
+handling of the generated HTTP functions.
+
+The client needs Ktor's `WebSockets` plugin installed with a content converter, since the generated
+code serializes messages through it:
+
+```kotlin
+val httpClient = HttpClient(CIO) {
+    install(WebSockets) {
+        contentConverter = KotlinxWebsocketSerializationConverter(Json)
+    }
+}
+```
+
+WebSocket generation is currently supported by the Ktor client only. Other client targets still
+treat the operation as a plain HTTP `GET`.
 
 ## Contributing
 

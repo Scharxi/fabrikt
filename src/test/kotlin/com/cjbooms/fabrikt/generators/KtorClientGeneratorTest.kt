@@ -27,6 +27,7 @@ class KtorClientGeneratorTest {
     @Suppress("unused")
     private fun fullApiTestCases(): Stream<String> = Stream.of(
         "ktorClient",
+        "ktorClientWebSocket",
         "parameterNameClash",
     )
 
@@ -82,6 +83,37 @@ class KtorClientGeneratorTest {
             .first { it.path.fileName.toString() == "KtorApiModels.kt" }
 
         assertThatGenerated(apiModels.content).isEqualTo(expectedApiModels)
+    }
+
+    @Test
+    fun `websocket support library is only generated for APIs that declare websockets`() {
+        assertThat(webSocketSupportFileNames("ktorClientWebSocket")).containsExactly("KtorWebSocketSupport.kt")
+        assertThat(webSocketSupportFileNames("ktorClient")).isEmpty()
+    }
+
+    @Test
+    fun `correct Ktor websocket support library is generated`() {
+        val apiLocation = javaClass.getResource("/examples/ktorClientWebSocket/api.yaml")!!
+        val sourceApi = SourceApi(apiLocation.readText(), baseDir = Paths.get(apiLocation.toURI()))
+
+        val supportFile = KtorClientGenerator(Packages("examples.ktorClientWebSocket"), sourceApi)
+            .generateLibrary(emptySet())
+            .filterIsInstance<SimpleFile>()
+            .first { it.path.fileName.toString() == "KtorWebSocketSupport.kt" }
+
+        assertThatGenerated(supportFile.content)
+            .isEqualTo("/examples/ktorClientWebSocket/client/ktor/KtorWebSocketSupport.kt")
+    }
+
+    private fun webSocketSupportFileNames(testCaseName: String): List<String> {
+        val apiLocation = javaClass.getResource("/examples/$testCaseName/api.yaml")!!
+        val sourceApi = SourceApi(apiLocation.readText(), baseDir = Paths.get(apiLocation.toURI()))
+
+        return KtorClientGenerator(Packages("examples.$testCaseName"), sourceApi)
+            .generateLibrary(emptySet())
+            .filterIsInstance<SimpleFile>()
+            .map { it.path.fileName.toString() }
+            .filter { it == "KtorWebSocketSupport.kt" }
     }
 
     private fun optionsFor(testCaseName: String): Set<ClientCodeGenOptionType> =

@@ -1,0 +1,114 @@
+openapi: "3.0.2"
+info:
+  title: Chat API
+  version: "1.0"
+servers:
+  - url: https://api.example.com/v1
+paths:
+  /rooms:
+    get:
+      summary: List the available chat rooms
+      operationId: listRooms
+      responses:
+        '200':
+          description: The available rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Room'
+  /rooms/{roomId}/stream:
+    get:
+      summary: Open a bidirectional stream of chat messages
+      operationId: streamRoom
+      parameters:
+        - name: roomId
+          in: path
+          description: The room to join
+          required: true
+          schema:
+            type: string
+        - name: since
+          in: query
+          description: Only replay messages newer than this cursor
+          required: false
+          schema:
+            type: string
+        - name: X-Client-Id
+          in: header
+          description: Identifies the connecting client
+          required: true
+          schema:
+            type: string
+      x-websocket:
+        send:
+          $ref: '#/components/schemas/ChatCommand'
+        receive:
+          $ref: '#/components/schemas/ChatEvent'
+      responses:
+        '101':
+          description: Switching Protocols
+  /rooms/{roomId}/events:
+    get:
+      summary: Subscribe to the events of a room without sending anything
+      operationId: subscribeRoomEvents
+      parameters:
+        - name: roomId
+          in: path
+          description: The room to observe
+          required: true
+          schema:
+            type: string
+      x-websocket:
+        receive:
+          $ref: '#/components/schemas/ChatEvent'
+      responses:
+        '101':
+          description: Switching Protocols
+  /rooms/{roomId}/commands:
+    get:
+      summary: Push commands to a room without reading anything back
+      operationId: pushRoomCommands
+      parameters:
+        - name: roomId
+          in: path
+          description: The room to command
+          required: true
+          schema:
+            type: string
+      x-websocket:
+        send:
+          $ref: '#/components/schemas/ChatCommand'
+      responses:
+        '101':
+          description: Switching Protocols
+components:
+  schemas:
+    Room:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    ChatCommand:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+    ChatEvent:
+      type: object
+      required:
+        - author
+        - text
+      properties:
+        author:
+          type: string
+        text:
+          type: string
