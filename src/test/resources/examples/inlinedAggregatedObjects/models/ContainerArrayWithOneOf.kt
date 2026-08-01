@@ -1,3 +1,0 @@
-package examples.inlinedAggregatedObjects.models
-
-public sealed interface ContainerArrayWithOneOf

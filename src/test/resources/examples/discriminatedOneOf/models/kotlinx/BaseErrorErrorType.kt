@@ -3,7 +3,9 @@ package examples.discriminatedOneOf.models
 import kotlin.String
 import kotlin.collections.Map
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@Serializable
 public enum class BaseErrorErrorType(
   public val `value`: String,
 ) {

@@ -3,9 +3,10 @@ package com.cjbooms.fabrikt.model
 import com.cjbooms.fabrikt.cli.CodeGenTypeOverride
 import com.cjbooms.fabrikt.cli.CodeGenerationType
 import com.cjbooms.fabrikt.cli.InstantLibrary
-import com.cjbooms.fabrikt.cli.SerializationLibrary.KOTLINX_SERIALIZATION
 import com.cjbooms.fabrikt.generators.MutableSettings
 import com.cjbooms.fabrikt.model.OasType.Companion.toOasType
+import java.util.logging.Level
+import java.util.logging.Logger
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.getEnumValues
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.isEnumDefinition
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.isInlinedDiscriminatedOneOfSuperInterface
@@ -25,8 +26,6 @@ import java.net.URI
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
-import java.util.logging.Level
-import java.util.logging.Logger
 import kotlin.reflect.KClass
 
 sealed class KotlinTypeInfo(val modelKClass: KClass<*>, val generatedModelClassName: String? = null) {
@@ -100,18 +99,15 @@ sealed class KotlinTypeInfo(val modelKClass: KClass<*>, val generatedModelClassN
             return when (schema.toOasType(oasKey)) {
                 OasType.Date -> {
                     if (MutableSettings.typeOverrides.contains(CodeGenTypeOverride.DATE_AS_STRING)) Text
-                    else if (MutableSettings.serializationLibrary == KOTLINX_SERIALIZATION) KotlinxLocalDate
-                    else Date
+                    else KotlinxLocalDate
                 }
 
                 OasType.DateTime -> {
                     if (MutableSettings.typeOverrides.contains(CodeGenTypeOverride.DATETIME_AS_STRING)) Text
                     else if (MutableSettings.typeOverrides.contains(CodeGenTypeOverride.DATETIME_AS_INSTANT)) Instant
                     else if (MutableSettings.typeOverrides.contains(CodeGenTypeOverride.DATETIME_AS_LOCALDATETIME)) LocalDateTime
-                    else if (MutableSettings.serializationLibrary == KOTLINX_SERIALIZATION)
-                        if (MutableSettings.instantLibrary == InstantLibrary.KOTLINX_INSTANT) KotlinxInstant
-                        else KotlinInstant
-                    else DateTime
+                    else if (MutableSettings.instantLibrary == InstantLibrary.KOTLINX_INSTANT) KotlinxInstant
+                    else KotlinInstant
                 }
 
                 OasType.Text -> Text
@@ -176,11 +172,7 @@ sealed class KotlinTypeInfo(val modelKClass: KClass<*>, val generatedModelClassN
 
                 OasType.Any -> getOverridableAnyType()
                 OasType.OneOfAny ->
-                    if (schema.isOneOfSuperInterfaceWithDiscriminator() ||
-                        (schema.isOneOfSuperInterface() &&
-                            schema.isSubTypeDeductionEnabled() &&
-                            MutableSettings.serializationLibrary != KOTLINX_SERIALIZATION)
-                    ) {
+                    if (schema.isOneOfSuperInterfaceWithDiscriminator()) {
                         Object(ModelNameRegistry.getOrRegister(schema, enclosingSchema))
                     } else {
                         getOverridableAnyType()
@@ -214,20 +206,8 @@ sealed class KotlinTypeInfo(val modelKClass: KClass<*>, val generatedModelClassN
         fun anyAsJsonElementMapValueOverride(): KotlinTypeInfo? =
             if (isAnyAsJsonElementActive()) JsonElement else null
 
-        private fun isAnyAsJsonElementActive(): kotlin.Boolean = when {
-            CodeGenTypeOverride.ANY_AS_JSONELEMENT !in MutableSettings.typeOverrides -> false
-            MutableSettings.serializationLibrary == KOTLINX_SERIALIZATION -> true
-            else -> {
-                logger.log(
-                    Level.WARNING,
-                    """
-                        The override flag 'ANY_AS_JSONELEMENT' requires the KOTLINX_SERIALIZATION serialization
-                        library and is ignored. Defaulting to `Any`...
-                    """.trimIndent()
-                )
-                false
-            }
-        }
+        private fun isAnyAsJsonElementActive(): kotlin.Boolean =
+            CodeGenTypeOverride.ANY_AS_JSONELEMENT in MutableSettings.typeOverrides
 
         private fun getOverridableByteArray(): KotlinTypeInfo {
             val types: Set<CodeGenerationType> = MutableSettings.generationTypes

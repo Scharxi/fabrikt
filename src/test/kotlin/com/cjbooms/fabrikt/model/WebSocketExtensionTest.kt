@@ -1,10 +1,7 @@
 package com.cjbooms.fabrikt.model
 
 import com.beust.jcommander.ParameterException
-import com.cjbooms.fabrikt.cli.ClientCodeGenTargetType
 import com.cjbooms.fabrikt.cli.CodeGenerationType
-import com.cjbooms.fabrikt.cli.SerializationLibrary
-import com.cjbooms.fabrikt.cli.ValidationLibrary
 import com.cjbooms.fabrikt.generators.MutableSettings
 import com.cjbooms.fabrikt.util.ModelNameRegistry
 import org.assertj.core.api.Assertions.assertThat
@@ -21,9 +18,6 @@ class WebSocketExtensionTest {
     fun init() {
         MutableSettings.updateSettings(
             genTypes = setOf(CodeGenerationType.CLIENT),
-            clientTarget = ClientCodeGenTargetType.KTOR,
-            serializationLibrary = SerializationLibrary.KOTLINX_SERIALIZATION,
-            validationLibrary = ValidationLibrary.NO_VALIDATION,
         )
         ModelNameRegistry.clear()
     }

@@ -1,6 +1,5 @@
 package examples.anyAsJsonElement.models
 
-import jakarta.validation.constraints.NotNull
 import kotlin.String
 import kotlin.collections.List
 import kotlin.collections.Map
@@ -12,7 +11,6 @@ import kotlinx.serialization.json.JsonObject
 @Serializable
 public data class Example(
   @SerialName("anyValue")
-  @get:NotNull
   public val anyValue: JsonElement,
   @SerialName("optionalAnyValue")
   public val optionalAnyValue: JsonElement? = null,

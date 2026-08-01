@@ -57,16 +57,6 @@ sealed class OasDefault {
             CodeBlock.of("%T.${enumValue.toEnumName()}", type)
     }
 
-    data class JsonNullableValue(val inner: OasDefault) : OasDefault() {
-        override fun getDefault(): CodeBlock =
-            CodeBlock.of(
-                "%T.of(${inner.getDefault()})", ClassName(
-                    "org.openapitools.jackson.nullable",
-                    "JsonNullable",
-                )
-            )
-    }
-
     companion object {
         fun from(typeInfo: KotlinTypeInfo, type: TypeName?, default: Any): OasDefault? {
             return when (default) {

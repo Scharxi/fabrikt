@@ -1,11 +1,9 @@
 package com.cjbooms.fabrikt.generators
 
-import com.cjbooms.fabrikt.cli.JacksonNullabilityMode
 import com.cjbooms.fabrikt.generators.GeneratorUtils.toKDoc
 import com.cjbooms.fabrikt.generators.TypeFactory.maybeMakeMapValueNullable
-import com.cjbooms.fabrikt.generators.model.JacksonMetadata
-import com.cjbooms.fabrikt.model.JacksonAnnotations
 import com.cjbooms.fabrikt.model.KotlinTypeInfo
+import com.cjbooms.fabrikt.model.KotlinxSerializationAnnotations
 import com.cjbooms.fabrikt.model.PropertyInfo
 import com.cjbooms.fabrikt.model.SerializationAnnotations
 import com.squareup.kotlinpoet.AnnotationSpec
@@ -24,8 +22,6 @@ data class ClassSettings(
     val extensions: Map<String, Any> = emptyMap(),
 ) {
 
-    val isMergePatchPattern = extensions["x-json-merge-patch"] as? Boolean ?: false
-    val addJsonIncludeNonNullAnnotation = extensions["x-jackson-include-non-null"] as? Boolean ?: false
     val nullableObjectRefs: Set<String> = (extensions["x-FABRIKT-INTERNAL-nullable"] as? List<*>)?.map { it.toString() }?.toSet()
         ?: emptySet()
 
@@ -45,23 +41,13 @@ object PropertyUtils {
         classBuilder: TypeSpec.Builder,
         constructorBuilder: FunSpec.Builder,
         classSettings: ClassSettings = ClassSettings(ClassSettings.PolymorphyType.NONE),
-        validationAnnotations: ValidationAnnotations = JavaxValidationAnnotations,
-        serializationAnnotations: SerializationAnnotations = JacksonAnnotations,
-        jacksonNullabilityMode: JacksonNullabilityMode = JacksonNullabilityMode.NONE,
+        validationAnnotations: ValidationAnnotations = NoValidationAnnotations,
+        serializationAnnotations: SerializationAnnotations = KotlinxSerializationAnnotations,
     ) {
         if (this.typeInfo is KotlinTypeInfo.UntypedObject && !serializationAnnotations.supportsAdditionalProperties)
             throw UnsupportedOperationException("Untyped objects not supported by selected serialization library (${this.oasKey}: ${this.schema})")
 
-        val wrappedType =
-            if (classSettings.isMergePatchPattern && !this.isRequired) {
-                ClassName(
-                    "org.openapitools.jackson.nullable",
-                    "JsonNullable",
-                ).parameterizedBy(type.copy(nullable = isSchemaNullable(classSettings)))
-            } else {
-                type
-            }
-        val property = PropertySpec.builder(name, wrappedType)
+        val property = PropertySpec.builder(name, type)
             .apply {
                 schema.toKDoc()?.let { addKdoc(it) }
             }
@@ -72,7 +58,7 @@ object PropertyUtils {
 
             property.initializer(name)
             serializationAnnotations.addIgnore(property)
-            val constructorParameter: ParameterSpec.Builder = ParameterSpec.builder(name, wrappedType)
+            val constructorParameter: ParameterSpec.Builder = ParameterSpec.builder(name, type)
             constructorParameter.defaultValue("mutableMapOf()")
             constructorBuilder.addParameter(constructorParameter.build())
 
@@ -150,11 +136,11 @@ object PropertyUtils {
                     } else {
                         property.initializer(name)
                         serializationAnnotations.addParameter(property, oasKey, isRequired, typeInfo)
-                        val constructorParameter: ParameterSpec.Builder = ParameterSpec.builder(name, wrappedType)
+                        val constructorParameter: ParameterSpec.Builder = ParameterSpec.builder(name, type)
                         val discriminators = maybeDiscriminator.getDiscriminatorMappings(schemaName)
                         when (val discriminator = discriminators.first()) {
                             is PropertyInfo.DiscriminatorKey.EnumKey ->
-                                constructorParameter.defaultValue("%T.%L", wrappedType, discriminator.enumKey)
+                                constructorParameter.defaultValue("%T.%L", type, discriminator.enumKey)
 
                             is PropertyInfo.DiscriminatorKey.StringKey ->
                                 constructorParameter.defaultValue("%S", discriminator.stringValue)
@@ -164,44 +150,14 @@ object PropertyUtils {
                 }
             } else {
                 property.initializer(name)
-                val constructorParameter: ParameterSpec.Builder = ParameterSpec.builder(name, wrappedType)
+                val constructorParameter: ParameterSpec.Builder = ParameterSpec.builder(name, type)
                 val oasDefault = getDefaultValue(this, parameterizedType)
 
-                val enforceNonNull = jacksonNullabilityMode in setOf(
-                    JacksonNullabilityMode.ENFORCE_OPTIONAL_NON_NULL,
-                    JacksonNullabilityMode.STRICT
-                )
-
-                val enforceRequiredNullable = jacksonNullabilityMode in setOf(
-                    JacksonNullabilityMode.ENFORCE_REQUIRED_NULLABLE,
-                    JacksonNullabilityMode.STRICT
-                )
-
-                val isSchemaNullable = isSchemaNullable(classSettings)
-
-                if (enforceRequiredNullable && isRequired && isSchemaNullable) {
-                    property.addAnnotation(JacksonMetadata.JSON_INCLUDE_ALWAYS)
-                }
-
                 if (!isRequired) {
-                    if (classSettings.addJsonIncludeNonNullAnnotation || (enforceNonNull && !isSchemaNullable)) {
-                        property.addAnnotation(JacksonMetadata.JSON_INCLUDE_NON_NULL)
-                    }
                     if (oasDefault != null) {
-                        val wrappedDefault =
-                            if (classSettings.isMergePatchPattern) {
-                                OasDefault.JsonNullableValue(oasDefault)
-                            } else {
-                                oasDefault
-                            }
-                        constructorParameter.defaultValue(wrappedDefault.getDefault())
+                        constructorParameter.defaultValue(oasDefault.getDefault())
                     } else {
-                        val undefinedDefault = if (classSettings.isMergePatchPattern) {
-                            "JsonNullable.undefined()"
-                        } else {
-                            "null"
-                        }
-                        constructorParameter.defaultValue(undefinedDefault)
+                        constructorParameter.defaultValue("null")
                     }
                 }
                 constructorBuilder.addParameter(constructorParameter.build())
@@ -268,24 +224,6 @@ object PropertyUtils {
         else -> !isRequired
     }
 
-    /**
-     * Current Open API v3 Spec validation keys:
-     *
-     *   multipleOf             - Not Supported. No equivalent javax validation. We could add our own as a
-     *   maximum                - Supported
-     *   minimum                - Supported
-     *   exclusiveMaximum       - Support - Used to mark the above as exclusive checks
-     *   exclusiveMinimum       - Support - Used to mark the above as exclusive checks
-     *   maxLength              - Supported
-     *   minLength              - Supported
-     *   pattern                - Supported
-     *   maxItems               - Supported
-     *   minItems               - Supported
-     *   uniqueItems            - Not Supported. No equivalent javax validation. We could add our own as a
-     *   maxProperties          - Not Supported. No equivalent javax validation. We could add our own as a
-     *   minProperties          - Not Supported. No equivalent javax validation. We could add our own as a
-     *   enum                   - Not currently supported. Possible to do as a regex maybe.
-     */
     private fun PropertySpec.Builder.addValidationAnnotations(
         info: PropertyInfo,
         validationAnnotations: ValidationAnnotations,
@@ -295,10 +233,8 @@ object PropertyUtils {
         if (!info.isNullable(classSettings, parameterizedType)) maybeAddAnnotation(validationAnnotations.nonNullAnnotation)
         when (info) {
             is PropertyInfo.Field -> {
-                // Regex validation pattern to validate string input
                 info.pattern?.let { maybeAddAnnotation(validationAnnotations.regexPattern(it)) }
 
-                // Size Restrictions for Strings
                 val (min, max) = Pair(info.minLength, info.maxLength)
                 if (min != null || max != null) {
                     maybeAddAnnotation(
@@ -306,7 +242,6 @@ object PropertyUtils {
                     )
                 }
 
-                // Numeric value validation
                 info.minimum?.let {
                     maybeAddAnnotation(
                         validationAnnotations.minRestriction(it, info.exclusiveMinimum ?: false),
@@ -320,7 +255,6 @@ object PropertyUtils {
             }
 
             is PropertyInfo.CollectionValidation -> {
-                // Size Restrictions for collections
                 val (minCollLen, maxCollLen) = Pair(info.minItems, info.maxItems)
                 if (minCollLen != null || maxCollLen != null) {
                     maybeAddAnnotation(

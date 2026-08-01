@@ -1,7 +1,6 @@
 package com.cjbooms.fabrikt.generators.model
 
 import com.cjbooms.fabrikt.cli.ExternalReferencesResolutionMode
-import com.cjbooms.fabrikt.cli.JacksonNullabilityMode
 import com.cjbooms.fabrikt.cli.ModelCodeGenOptionType
 import com.cjbooms.fabrikt.configurations.Packages
 import com.cjbooms.fabrikt.generators.ClassSettings
@@ -20,8 +19,6 @@ import com.cjbooms.fabrikt.generators.TypeFactory.createMutableMapOfMapsStringTo
 import com.cjbooms.fabrikt.generators.TypeFactory.createMutableMapOfStringToType
 import com.cjbooms.fabrikt.generators.TypeFactory.createSet
 import com.cjbooms.fabrikt.generators.ValidationAnnotations
-import com.cjbooms.fabrikt.generators.model.JacksonMetadata.basePolymorphicType
-import com.cjbooms.fabrikt.generators.model.JacksonMetadata.polymorphicSubTypes
 import com.cjbooms.fabrikt.model.SerializationAnnotations
 import com.cjbooms.fabrikt.model.Destinations.modelsPackage
 import com.cjbooms.fabrikt.model.GeneratedType
@@ -83,10 +80,9 @@ class ModelGenerator(
     private val sourceApi: SourceApi,
 ) {
     private val options = MutableSettings.modelOptions
-    private val validationAnnotations: ValidationAnnotations = MutableSettings.validationLibrary.annotations
-    private val serializationAnnotations: SerializationAnnotations = MutableSettings.effectiveSerializationAnnotations
+    private val validationAnnotations: ValidationAnnotations = MutableSettings.validationAnnotations
+    private val serializationAnnotations: SerializationAnnotations = MutableSettings.serializationAnnotations
     private val externalRefResolutionMode: ExternalReferencesResolutionMode = MutableSettings.externalRefResolutionMode
-    private val jacksonNullabilityMode: JacksonNullabilityMode = MutableSettings.effectiveJacksonNullabilityMode
 
     companion object {
         private val logger = Logger.getGlobal()
@@ -107,7 +103,7 @@ class ModelGenerator(
                         typeInfo.parameterizedType,
                         typeInfo.isParameterizedTypeNullable
                     )
-                    val annotatedElementType = MutableSettings.serializationLibrary.serializationAnnotations
+                    val annotatedElementType = MutableSettings.serializationAnnotations
                         .annotateArrayElementType(elementType, typeInfo.parameterizedType)
                     if (typeInfo.hasUniqueItems) {
                         createSet(annotatedElementType)
@@ -118,7 +114,18 @@ class ModelGenerator(
 
                 is KotlinTypeInfo.Map ->
                     when (val paramType = typeInfo.parameterizedType) {
-                        is KotlinTypeInfo.UntypedObjectAdditionalProperties -> createMapOfMapsStringToStringAny()
+                        is KotlinTypeInfo.UntypedObjectAdditionalProperties -> {
+                            val jsonElementOverride = KotlinTypeInfo.anyAsJsonElementMapValueOverride()
+                            if (jsonElementOverride != null) {
+                                // Empty object map values (`additionalProperties: { type: object }`) become
+                                // Map<String, JsonElement?> when ANY_AS_JSONELEMENT is active.
+                                createMapOfStringToType(
+                                    createMapOfStringToType(jsonElementOverride.modelKClass.asTypeName()),
+                                )
+                            } else {
+                                createMapOfMapsStringToStringAny()
+                            }
+                        }
                         is KotlinTypeInfo.UnknownAdditionalProperties ->
                             createMapOfStringToType(
                                 toClassName(
@@ -175,6 +182,10 @@ class ModelGenerator(
                     generatedType(basePackage, typeInfo.parameterizedType.generatedModelClassName!!)
 
                 typeInfo is KotlinTypeInfo.UnknownAdditionalProperties &&
+                    KotlinTypeInfo.anyAsJsonElementMapValueOverride() != null ->
+                    KotlinTypeInfo.JsonElement.modelKClass.asTypeName()
+
+                typeInfo is KotlinTypeInfo.UntypedObjectAdditionalProperties &&
                     KotlinTypeInfo.anyAsJsonElementMapValueOverride() != null ->
                     KotlinTypeInfo.JsonElement.modelKClass.asTypeName()
 
@@ -495,9 +506,6 @@ class ModelGenerator(
                     .addParameter("value", String::class)
                     .build(),
             )
-            .addQuarkusReflectionAnnotation()
-            .addMicronautIntrospectedAnnotation()
-            .addMicronautReflectionAnnotation()
 
         enum.entries.forEach {
             val enumConstantBuilder = TypeSpec.anonymousClassBuilder()
@@ -562,10 +570,7 @@ class ModelGenerator(
 
         val companion = companionBuilder.build()
 
-        // Only Micronaut Serde needs @Serdeable on enums; Jackson and kotlinx don't annotate enum classes
-        if (options.contains(ModelCodeGenOptionType.MICRONAUT_SERDEABLE)) {
-            serializationAnnotations.addClassAnnotation(classBuilder)
-        }
+        serializationAnnotations.addClassAnnotation(classBuilder)
 
         return classBuilder.addType(companion).build()
     }
@@ -608,9 +613,6 @@ class ModelGenerator(
         val classBuilder = builder
             .apply { schema.toKDoc()?.let { addKdoc(it) } }
             .addSerializableInterface()
-            .addQuarkusReflectionAnnotation()
-            .addMicronautIntrospectedAnnotation()
-            .addMicronautReflectionAnnotation()
             .addCompanionObject()
         for (oneOfInterface in oneOfInterfaces) {
             val interfaceName = ModelNameRegistry.getBySchema(oneOfInterface) ?: ModelNameRegistry.getOrRegister(oneOfInterface)
@@ -722,9 +724,6 @@ class ModelGenerator(
         }
 
         interfaceBuilder
-            .addQuarkusReflectionAnnotation()
-            .addMicronautIntrospectedAnnotation()
-            .addMicronautReflectionAnnotation()
 
         return interfaceBuilder.build()
     }
@@ -824,7 +823,7 @@ class ModelGenerator(
         constructorBuilder: FunSpec.Builder = FunSpec.constructorBuilder(),
     ): TypeSpec.Builder {
         this.addModifiers(KModifier.SEALED)
-            .addAnnotation(basePolymorphicType(discriminator.propertyName))
+            .let { serializationAnnotations.addBasePolymorphicTypeAnnotation(it, discriminator.propertyName) }
             .modifiers.remove(KModifier.DATA)
 
         for (oneOfSuperInterface in oneOfSuperInterfaces) {
@@ -849,13 +848,7 @@ class ModelGenerator(
         }.toMapList()
             .firstValueMap()
 
-        val maybeEnumDiscriminator = properties
-            .firstOrNull { it.name == discriminator.propertyName }?.typeInfo as? KotlinTypeInfo.Enum
-
-        this.addAnnotation(polymorphicSubTypes(mappings, maybeEnumDiscriminator))
-            .addQuarkusReflectionAnnotation()
-            .addMicronautIntrospectedAnnotation()
-            .addMicronautReflectionAnnotation()
+        serializationAnnotations.addPolymorphicSubTypesAnnotation(this, mappings)
 
         properties.addToClass(
             schemaName,
@@ -887,9 +880,6 @@ class ModelGenerator(
         constructorBuilder: FunSpec.Builder = FunSpec.constructorBuilder(),
     ): TypeSpec.Builder {
         this.addSerializableInterface()
-            .addQuarkusReflectionAnnotation()
-            .addMicronautIntrospectedAnnotation()
-            .addMicronautReflectionAnnotation()
             .addCompanionObject()
             .superclass(
                 toModelType(
@@ -949,7 +939,6 @@ class ModelGenerator(
                 classSettings = classType,
                 validationAnnotations = validationAnnotations,
                 serializationAnnotations = serializationAnnotations,
-                jacksonNullabilityMode = jacksonNullabilityMode
             )
         }
         if (constructorBuilder.parameters.isNotEmpty() && classBuilder.modifiers.isEmpty()) {
@@ -994,39 +983,9 @@ class ModelGenerator(
         return this
     }
 
-    private fun TypeSpec.Builder.addQuarkusReflectionAnnotation(): TypeSpec.Builder =
-        this.addOptionalAnnotation(
-            ModelCodeGenOptionType.QUARKUS_REFLECTION,
-            "RegisterForReflection".toClassName("io.quarkus.runtime.annotations"),
-        )
-
-    private fun TypeSpec.Builder.addMicronautIntrospectedAnnotation(): TypeSpec.Builder =
-        this.addOptionalAnnotation(
-            ModelCodeGenOptionType.MICRONAUT_INTROSPECTION,
-            "Introspected".toClassName("io.micronaut.core.annotation"),
-        )
-
-    private fun TypeSpec.Builder.addMicronautReflectionAnnotation(): TypeSpec.Builder =
-        this.addOptionalAnnotation(
-            ModelCodeGenOptionType.MICRONAUT_REFLECTION,
-            "ReflectiveAccess".toClassName("io.micronaut.core.annotation"),
-        )
-
     private fun TypeSpec.Builder.addCompanionObject(): TypeSpec.Builder {
         if (options.any { it == ModelCodeGenOptionType.INCLUDE_COMPANION_OBJECT }) {
             this.addType(TypeSpec.companionObjectBuilder().build())
-        }
-        return this
-    }
-
-    private fun TypeSpec.Builder.addOptionalAnnotation(
-        optionType: ModelCodeGenOptionType,
-        type: ClassName,
-    ): TypeSpec.Builder {
-        if (options.any { it == optionType }) {
-            this.addAnnotation(
-                AnnotationSpec.builder(type).build(),
-            )
         }
         return this
     }

@@ -21,19 +21,12 @@ object CodeGen {
 
         MutableSettings.updateSettings(
             genTypes = codeGenArgs.targets,
-            controllerOptions = codeGenArgs.controllerOptions,
-            controllerTarget = codeGenArgs.controllerTarget,
             modelOptions = codeGenArgs.modelOptions,
             modelSuffix = codeGenArgs.modelSuffix,
             clientOptions = codeGenArgs.clientOptions,
-            clientTarget = codeGenArgs.clientTarget,
-            openfeignClientName = codeGenArgs.openfeignClientName,
             typeOverrides = codeGenArgs.typeOverrides,
-            validationLibrary = codeGenArgs.validationLibrary,
             externalRefResolutionMode = codeGenArgs.externalRefResolutionMode,
-            serializationLibrary = codeGenArgs.serializationLibrary,
             instantLibrary = codeGenArgs.instantLibrary,
-            jacksonNullabilityMode = codeGenArgs.jacksonNullabilityMode,
             outputOptions = codeGenArgs.outputOptions,
         )
         generate(

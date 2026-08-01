@@ -73,10 +73,10 @@ class CodeGenArgs {
 
     @Parameter(
         names = ["--targets"],
-        description = "Targets are the parts of the application that you want to be generated.",
+        description = "Targets are the parts of the application that you want to be generated. Defaults to CLIENT (which also emits models).",
         converter = CodeGenerationTypesConverter::class
     )
-    var targets: Set<CodeGenerationType> = emptySet()
+    var targets: Set<CodeGenerationType> = setOf(CodeGenerationType.CLIENT)
 
     @Parameter(
         names = ["--output-opts"],
@@ -84,20 +84,6 @@ class CodeGenArgs {
         converter = OutputOptionConverter::class
     )
     var outputOptions: Set<OutputOptionType> = emptySet()
-
-    @Parameter(
-        names = ["--http-controller-opts"],
-        description = "Select the options for the controllers that you want to be generated.",
-        converter = ControllerCodeGenOptionConverter::class
-    )
-    var controllerOptions: Set<ControllerCodeGenOptionType> = emptySet()
-
-    @Parameter(
-        names = ["--http-controller-target"],
-        description = "Optionally select the target framework for the controllers that you want to be generated. Defaults to Spring Controllers",
-        converter = ControllerCodeGenTargetConverter::class
-    )
-    var controllerTarget: ControllerCodeGenTargetType = ControllerCodeGenTargetType.SPRING
 
     @Parameter(
         names = ["--http-model-opts"],
@@ -114,23 +100,10 @@ class CodeGenArgs {
 
     @Parameter(
         names = ["--http-client-opts"],
-        description = "Select the options for the http client code that you want to be generated.",
+        description = "Select the options for the Ktor client code that you want to be generated.",
         converter = ClientCodeGenOptionConverter::class
     )
     var clientOptions: Set<ClientCodeGenOptionType> = emptySet()
-
-    @Parameter(
-        names = ["--http-client-target"],
-        description = "Optionally select the target client that you want to be generated. Defaults to OK_HTTP",
-        converter = ClientCodeGenTargetConverter::class
-    )
-    var clientTarget: ClientCodeGenTargetType = ClientCodeGenTargetType.OK_HTTP
-
-    @Parameter(
-        names = ["--openfeign-client-name"],
-        description = "Specify openfeign client name for spring-cloud-starter-openfeign. Defaults to 'fabrikt-client'.",
-    )
-    var openfeignClientName: String = ClientCodeGenOptionType.DEFAULT_OPEN_FEIGN_CLIENT_NAME
 
     @Parameter(
         names = ["--src-path"],
@@ -154,13 +127,6 @@ class CodeGenArgs {
     var typeOverrides: Set<CodeGenTypeOverride> = emptySet()
 
     @Parameter(
-        names = ["--validation-library"],
-        description = "Specify which validation library to use for annotations in generated model classes. Default: JAKARTA_VALIDATION",
-        converter = ValidationLibraryOptionConverter::class
-    )
-    var validationLibrary: ValidationLibrary = ValidationLibrary.JAKARTA_VALIDATION
-
-    @Parameter(
         names = ["--external-ref-resolution"],
         description = "Specify to which degree referenced schemas from external files are included in model generation. Default: TARGETED",
         converter = ExternalReferencesResolutionModeConverter::class
@@ -168,25 +134,11 @@ class CodeGenArgs {
     var externalRefResolutionMode: ExternalReferencesResolutionMode = ExternalReferencesResolutionMode.TARGETED
 
     @Parameter(
-        names = ["--serialization-library"],
-        description = "Specify which serialization library to use for annotations in generated model classes. Default: JACKSON",
-        converter = SerializationLibraryOptionConverter::class
-    )
-    var serializationLibrary: SerializationLibrary = SerializationLibrary.JACKSON
-
-    @Parameter(
         names = ["--instant-library"],
-        description = "Specify which Instant library to use in generated model classes for kotlinx.serialization. Default: KOTLINX_INSTANT",
+        description = "Specify which Instant library to use in generated model classes. Default: KOTLINX_INSTANT",
         converter = InstantOptionConverter::class
     )
     var instantLibrary: InstantLibrary = InstantLibrary.KOTLINX_INSTANT
-
-    @Parameter(
-        names = ["--jackson-nullability-mode"],
-        description = "Configure advanced handling when serializing null values with Jackson. Default: NONE",
-        converter = JacksonNullabilityModeOptionConverter::class
-    )
-    var jacksonNullabilityMode: JacksonNullabilityMode = JacksonNullabilityMode.NONE
 }
 
 class CodeGenerationTypesConverter : IStringConverter<CodeGenerationType> {
@@ -194,15 +146,7 @@ class CodeGenerationTypesConverter : IStringConverter<CodeGenerationType> {
         convertToEnumValue(value)
 }
 
-class ControllerCodeGenOptionConverter : IStringConverter<ControllerCodeGenOptionType> {
-    override fun convert(value: String): ControllerCodeGenOptionType = convertToEnumValue(value)
-}
-
-class ControllerCodeGenTargetConverter : IStringConverter<ControllerCodeGenTargetType> {
-    override fun convert(value: String): ControllerCodeGenTargetType = convertToEnumValue(value)
-}
-
-class OutputOptionConverter :  IStringConverter<OutputOptionType> {
+class OutputOptionConverter : IStringConverter<OutputOptionType> {
     override fun convert(value: String): OutputOptionType = convertToEnumValue(value)
 }
 
@@ -215,32 +159,16 @@ class ClientCodeGenOptionConverter : IStringConverter<ClientCodeGenOptionType> {
         convertToEnumValue(value)
 }
 
-class ClientCodeGenTargetConverter : IStringConverter<ClientCodeGenTargetType> {
-    override fun convert(value: String): ClientCodeGenTargetType = convertToEnumValue(value)
-}
-
-class ValidationLibraryOptionConverter : IStringConverter<ValidationLibrary> {
-    override fun convert(value: String): ValidationLibrary = convertToEnumValue(value)
-}
-
 class InstantOptionConverter : IStringConverter<InstantLibrary> {
     override fun convert(value: String): InstantLibrary = convertToEnumValue(value)
 }
 
-class TypeCodeGenOptionsConverter: IStringConverter<CodeGenTypeOverride> {
+class TypeCodeGenOptionsConverter : IStringConverter<CodeGenTypeOverride> {
     override fun convert(value: String): CodeGenTypeOverride = convertToEnumValue(value)
 }
 
-class ExternalReferencesResolutionModeConverter: IStringConverter<ExternalReferencesResolutionMode> {
+class ExternalReferencesResolutionModeConverter : IStringConverter<ExternalReferencesResolutionMode> {
     override fun convert(value: String): ExternalReferencesResolutionMode = convertToEnumValue(value)
-}
-
-class SerializationLibraryOptionConverter : IStringConverter<SerializationLibrary> {
-    override fun convert(value: String): SerializationLibrary = convertToEnumValue(value)
-}
-
-class JacksonNullabilityModeOptionConverter : IStringConverter<JacksonNullabilityMode> {
-    override fun convert(value: String): JacksonNullabilityMode = convertToEnumValue(value)
 }
 
 class PackageNameValidator : IValueValidator<String> {

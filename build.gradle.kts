@@ -28,7 +28,7 @@ val projectScmConUrl = "scm:https://fabrikt-io@github.com/fabrikt-io/fabrikt.git
 val projectScmDevUrl = "scm:git://github.com/fabrikt-io/fabrikt.git"
 val projectIssueUrl = "https://github.com/fabrikt-io/fabrikt/issues"
 val projectName = "Fabrikt"
-val projectDesc = "Fabricates Kotlin code from OpenApi3 specifications"
+val projectDesc = "Generates Ktor clients and kotlinx-serialization models from OpenAPI 3"
 val projectLicenseName = "Apache License 2.0"
 val projectLicenseUrl = "https://opensource.org/licenses/Apache-2.0"
 
@@ -60,18 +60,6 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.bundles.junit)
     testImplementation(libs.assertj.core)
-
-    // Below dependencies are solely present so code examples in the test resources dir compile
-    testImplementation(libs.validation.api)
-    testImplementation(libs.jakarta.validation.api)
-    testImplementation(libs.spring.webmvc)
-    testImplementation(libs.spring.security.web)
-    testImplementation(libs.micronaut.core)
-    testImplementation(libs.micronaut.http)
-    testImplementation(libs.okhttp)
-    testImplementation(libs.jackson.databind.nullable)
-    testImplementation(libs.ktor.server.core)
-    testImplementation(libs.ktor.server.auth)
 
     testImplementation(platform(libs.ktlint.bom))
     testImplementation(libs.ktlint.rule.engine.core)

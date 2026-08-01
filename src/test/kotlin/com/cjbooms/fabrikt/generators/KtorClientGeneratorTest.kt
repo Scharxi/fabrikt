@@ -1,12 +1,9 @@
 package com.cjbooms.fabrikt.generators
 
 import com.cjbooms.fabrikt.cli.ClientCodeGenOptionType
-import com.cjbooms.fabrikt.cli.ClientCodeGenTargetType
 import com.cjbooms.fabrikt.cli.CodeGenerationType
-import com.cjbooms.fabrikt.cli.SerializationLibrary
-import com.cjbooms.fabrikt.cli.ValidationLibrary
 import com.cjbooms.fabrikt.configurations.Packages
-import com.cjbooms.fabrikt.generators.controller.KtorClientGenerator
+import com.cjbooms.fabrikt.generators.client.KtorClientGenerator
 import com.cjbooms.fabrikt.model.SourceApi
 import com.cjbooms.fabrikt.util.TestFileUtils.toSingleFile
 import com.cjbooms.fabrikt.util.GeneratedCodeAsserter.Companion.assertThatGenerated
@@ -38,9 +35,6 @@ class KtorClientGeneratorTest {
     fun init() {
         MutableSettings.updateSettings(
             genTypes = setOf(CodeGenerationType.CLIENT),
-            clientTarget = ClientCodeGenTargetType.KTOR,
-            serializationLibrary = SerializationLibrary.KOTLINX_SERIALIZATION,
-            validationLibrary = ValidationLibrary.NO_VALIDATION,
         )
         ModelNameRegistry.clear()
     }

@@ -39,12 +39,9 @@ fun createGenerateCodeTask(name: String, apiFilePath: String, basePackage: Strin
             "--output-directory", generationDir,
             "--base-package", basePackage,
             "--api-file", apiFilePath,
-            "--validation-library", "NO_VALIDATION",
             "--targets", "http_models",
-            "--serialization-library", "KOTLINX_SERIALIZATION",
             "--instant-library", "KOTLIN_TIME_INSTANT",
         ).plus(additionalArgs)
-        dependsOn(":jar")
         dependsOn(":shadowJar")
     }
 
